@@ -32,7 +32,7 @@ OTA_REPO = {
     "repo": "BME280-garten-micropython",
     "branch": "main",
     "files": ["main.py", "bme280.py", "senko.py"],
-    "working_dir": ""  # Leer lassen, wenn die Dateien im Root des Repos liegen
+    "working_dir": None  # None oder leerer String für Root-Verzeichnis
 }
 
 
@@ -114,20 +114,22 @@ def connect_mqtt():
 
 # Hauptschleife
 mqtt_client = None
+ota_checked = False
 print("Starte Hauptschleife...")
 print("version 1.0.0")
 
 while True:
     wdt.feed()  # System am Leben erhalten
-
     try:
         # 1. Sicherstellen, dass WLAN verbunden ist
         if not wlan.isconnected():
+            ota_checked = False  # Reset für Reconnect
             do_connect()
 
-            # Nach erfolgreichem WLAN-Verbindungsaufbau einmalig auf Updates prüfen
-            if wlan.isconnected():
-                check_for_updates()
+        # 2. Einmaliger Update-Check nach erfolgreichem WLAN-Connect
+        if wlan.isconnected() and not ota_checked:
+            check_for_updates()
+            ota_checked = True
 
         # 2. Sicherstellen, dass MQTT verbunden ist
         if wlan.isconnected() and mqtt_client is None:

@@ -18,10 +18,16 @@ class Senko:
             files (list): Files included in OTA update.
             headers (list, optional): Headers for urequests.
         """
-        self.base_url = "{}/{}/{}".format(self.raw, user,
-                                          repo) if user else url.replace(self.github, self.raw)
-        self.url = url if url is not None else "{}/{}/{}".format(
-            self.base_url, branch, working_dir)
+        if user:
+            self.base_url = "{}/{}/{}".format(self.raw, user, repo)
+        else:
+            self.base_url = url.replace(self.github, self.raw)
+
+        self.url = url if url is not None else "{}/{}".format(
+            self.base_url, branch)
+        if working_dir:
+            self.url += "/" + working_dir
+
         self.headers = headers
         self.files = files
 
@@ -50,7 +56,8 @@ class Senko:
         changes = []
 
         for file in self.files:
-            latest_version = self._get_file(self.url + "/" + file)
+            latest_version = self._get_file(
+                "{}/{}".format(self.url, file.lstrip("/")))
             if latest_version is None:
                 continue
 
@@ -86,7 +93,8 @@ class Senko:
 
         for file in changes:
             with open(file, "w") as local_file:
-                local_file.write(self._get_file(self.url + "/" + file))
+                local_file.write(self._get_file(
+                    "{}/{}".format(self.url, file.lstrip("/"))))
 
         if changes:
             return True
