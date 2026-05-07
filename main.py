@@ -31,7 +31,8 @@ OTA_REPO = {
     "user": "klaus-trausner",
     "repo": "BME280-garten-micropython",
     "branch": "main",
-    "files": ["main.py", "bme280.py"]
+    "files": ["main.py", "bme280.py", "senko.py"],
+    "working_dir": ""  # Leer lassen, wenn die Dateien im Root des Repos liegen
 }
 
 
@@ -86,7 +87,8 @@ def check_for_updates():
         user=OTA_REPO["user"],
         repo=OTA_REPO["repo"],
         branch=OTA_REPO["branch"],
-        files=OTA_REPO["files"]
+        files=OTA_REPO["files"],
+        working_dir=OTA_REPO["working_dir"]
     )
 
     if OTA.update():
