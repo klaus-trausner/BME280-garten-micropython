@@ -20,8 +20,10 @@ class Senko:
         """
         if user:
             self.base_url = "{}/{}/{}".format(self.raw, user, repo)
-        else:
+        elif url:
             self.base_url = url.replace(self.github, self.raw)
+        else:
+            self.base_url = ""
 
         self.url = url if url is not None else "{}/{}".format(
             self.base_url, branch)
@@ -44,13 +46,18 @@ class Senko:
             return False
 
     def _get_file(self, url):
-        payload = urequests.get(url, headers=self.headers)
-        code = payload.status_code
-
-        if code == 200:
-            return payload.text
-        else:
+        res = None
+        try:
+            res = urequests.get(url, headers=self.headers)
+            if res.status_code == 200:
+                content = res.text
+                return content
             return None
+        except Exception:
+            return None
+        finally:
+            if res:
+                res.close()  # Wichtig: Sockets immer schließen!
 
     def _check_all(self):
         changes = []

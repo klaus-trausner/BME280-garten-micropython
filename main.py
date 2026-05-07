@@ -12,6 +12,10 @@ except ImportError:
     OTA_AVAILABLE = False
     print("OTA-Bibliothek (senko) nicht gefunden. Überspringe Update-Check.")
 
+
+# Version
+VERSION = "1.0.1"
+
 # WiFi Setup
 SSID = "ZTE_9F7AC2"
 PASSWORD = "6LE66868TE"
@@ -116,7 +120,7 @@ def connect_mqtt():
 mqtt_client = None
 ota_checked = False
 print("Starte Hauptschleife...")
-print("version 1.0.0")
+print("Version: ", VERSION)
 
 while True:
     wdt.feed()  # System am Leben erhalten
@@ -128,8 +132,14 @@ while True:
 
         # 2. Einmaliger Update-Check nach erfolgreichem WLAN-Connect
         if wlan.isconnected() and not ota_checked:
-            check_for_updates()
-            ota_checked = True
+            try:
+                # Kurze Pause, damit sich die SSL/WLAN-Verbindung stabilisiert
+                utime.sleep(2)
+                check_for_updates()
+                ota_checked = True
+            except Exception as e:
+                print(
+                    "OTA-Check vorerst fehlgeschlagen (wird später erneut versucht):", e)
 
         # 2. Sicherstellen, dass MQTT verbunden ist
         if wlan.isconnected() and mqtt_client is None:
