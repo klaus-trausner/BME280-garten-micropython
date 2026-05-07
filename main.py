@@ -3,6 +3,14 @@ import utime
 from machine import Pin, I2C, WDT, reset
 import bme280
 from umqtt.simple import MQTTClient
+try:
+    # Senko ist eine beliebte, minimalistische OTA-Bibliothek für MicroPython
+    # Sie muss als senko.py auf dem ESP32 vorhanden sein.
+    import senko
+    OTA_AVAILABLE = True
+except ImportError:
+    OTA_AVAILABLE = False
+    print("OTA-Bibliothek (senko) nicht gefunden. Überspringe Update-Check.")
 
 # WiFi Setup
 SSID = "ZTE_9F7AC2"
@@ -17,6 +25,15 @@ MQTT_TOPIC_PUB = b"test"
 TOPIC_TEMP = b"esp32/temperature"
 TOPIC_PRES = b"esp32/pressure"
 TOPIC_HUM = b"esp32/humidity"
+
+# OTA Setup (Beispiel für GitHub)
+OTA_REPO = {
+    "user": "klaus-trausner",
+    "repo": "BME280-garten-micropython",
+    "branch": "main",
+    "files": ["main.py", "bme280.py"]
+}
+
 
 # Watchdog initialisieren (Timeout 60 Sekunden)
 wdt = WDT(timeout=60000)
@@ -60,6 +77,25 @@ def do_connect():
         print('Connection failed. Status:', wlan.status())
 
 
+def check_for_updates():
+    if not OTA_AVAILABLE:
+        return
+
+    print("Prüfe auf Updates...")
+    OTA = senko.Senko(
+        user=OTA_REPO["user"],
+        repo=OTA_REPO["repo"],
+        branch=OTA_REPO["branch"],
+        files=OTA_REPO["files"]
+    )
+
+    if OTA.update():
+        print("Update gefunden und installiert! Starte neu...")
+        reset()
+    else:
+        print("System ist auf dem neuesten Stand.")
+
+
 def connect_mqtt():
     try:
         client = MQTTClient(MQTT_CLIENT_ID, MQTT_BROKER,
@@ -76,6 +112,8 @@ def connect_mqtt():
 
 # Hauptschleife
 mqtt_client = None
+print("Starte Hauptschleife...")
+print("version 1.0.0")
 
 while True:
     wdt.feed()  # System am Leben erhalten
@@ -84,6 +122,10 @@ while True:
         # 1. Sicherstellen, dass WLAN verbunden ist
         if not wlan.isconnected():
             do_connect()
+
+            # Nach erfolgreichem WLAN-Verbindungsaufbau einmalig auf Updates prüfen
+            if wlan.isconnected():
+                check_for_updates()
 
         # 2. Sicherstellen, dass MQTT verbunden ist
         if wlan.isconnected() and mqtt_client is None:
