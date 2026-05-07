@@ -1,5 +1,6 @@
 import network
 import utime
+import gc
 from machine import Pin, I2C, WDT, reset
 import bme280
 from umqtt.simple import MQTTClient
@@ -14,7 +15,7 @@ except ImportError:
 
 
 # Version
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 # WiFi Setup
 SSID = "ZTE_9F7AC2"
@@ -36,7 +37,7 @@ OTA_REPO = {
     "repo": "BME280-garten-micropython",
     "branch": "main",
     "files": ["main.py", "bme280.py", "senko.py"],
-    "working_dir": None  # None oder leerer String für Root-Verzeichnis
+    "working_dir": ""  # Leer lassen, wenn die Dateien im Root des Repos liegen
 }
 
 
@@ -86,6 +87,7 @@ def check_for_updates():
     if not OTA_AVAILABLE:
         return
 
+    gc.collect()
     print("Prüfe auf Updates...")
     OTA = senko.Senko(
         user=OTA_REPO["user"],
@@ -118,28 +120,20 @@ def connect_mqtt():
 
 # Hauptschleife
 mqtt_client = None
-ota_checked = False
 print("Starte Hauptschleife...")
 print("Version: ", VERSION)
 
 while True:
     wdt.feed()  # System am Leben erhalten
+
     try:
         # 1. Sicherstellen, dass WLAN verbunden ist
         if not wlan.isconnected():
-            ota_checked = False  # Reset für Reconnect
             do_connect()
 
-        # 2. Einmaliger Update-Check nach erfolgreichem WLAN-Connect
-        if wlan.isconnected() and not ota_checked:
-            try:
-                # Kurze Pause, damit sich die SSL/WLAN-Verbindung stabilisiert
-                utime.sleep(2)
+            # Nach erfolgreichem WLAN-Verbindungsaufbau einmalig auf Updates prüfen
+            if wlan.isconnected():
                 check_for_updates()
-                ota_checked = True
-            except Exception as e:
-                print(
-                    "OTA-Check vorerst fehlgeschlagen (wird später erneut versucht):", e)
 
         # 2. Sicherstellen, dass MQTT verbunden ist
         if wlan.isconnected() and mqtt_client is None:

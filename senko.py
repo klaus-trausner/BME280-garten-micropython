@@ -1,5 +1,7 @@
 import urequests
 import uhashlib
+import gc
+import utime
 
 
 class Senko:
@@ -46,9 +48,12 @@ class Senko:
             return False
 
     def _get_file(self, url):
+        gc.collect()
+        # Cache-Buster hinzufügen, um GitHub CDN zu umgehen
+        cache_url = url + "?t=" + str(utime.ticks_ms())
         res = None
         try:
-            res = urequests.get(url, headers=self.headers)
+            res = urequests.get(cache_url, headers=self.headers)
             if res.status_code == 200:
                 content = res.text
                 return content
@@ -99,9 +104,12 @@ class Senko:
         changes = self._check_all()
 
         for file in changes:
-            with open(file, "w") as local_file:
-                local_file.write(self._get_file(
-                    "{}/{}".format(self.url, file.lstrip("/"))))
+            content = self._get_file(
+                "{}/{}".format(self.url, file.lstrip("/")))
+            if content is not None:
+                with open(file, "w") as local_file:
+                    local_file.write(content)
+                gc.collect()
 
         if changes:
             return True
