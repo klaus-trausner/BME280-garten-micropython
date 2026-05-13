@@ -42,10 +42,7 @@ class Senko:
         x = x_hash.digest()
         y = y_hash.digest()
 
-        if str(x) == str(y):
-            return True
-        else:
-            return False
+        return x == y
 
     def _get_file(self, url):
         gc.collect()
