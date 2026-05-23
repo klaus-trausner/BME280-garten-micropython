@@ -26,6 +26,7 @@ TOPIC_PRES     = b"esp32/pressure"
 TOPIC_HUM      = b"esp32/humidity"
 TOPIC_STATUS   = b"esp32/status"
 TOPIC_VERSION  = b"esp32/version"
+TOPIC_CMD      = b"esp32/cmd"
 
 # OTA Setup (GitHub)
 OTA_REPO = {
@@ -132,6 +133,23 @@ def check_for_updates():
     wdt.feed()
 
 
+def mqtt_callback(topic, msg):
+    """Callback-Funktion für eingehende MQTT-Nachrichten."""
+    global mqtt_client
+    print("MQTT empfangen:", topic, msg)
+    if topic == TOPIC_CMD and msg == b"restart":
+        print("Neustart-Befehl empfangen! Starte neu...")
+        try:
+            # Command-Topic leeren, um Endlosschleife bei Retained Messages zu verhindern
+            mqtt_client.publish(TOPIC_CMD, b"", retain=True)
+            # Status auf "restarting" setzen
+            mqtt_client.publish(TOPIC_STATUS, b"restarting", retain=True)
+            utime.sleep_ms(500)
+        except Exception as e:
+            print("Fehler beim Senden des Neustart-Status:", e)
+        reset()
+
+
 def connect_mqtt():
     """MQTT-Verbindung aufbauen. Gibt Client-Objekt oder None zurück."""
     try:
@@ -142,11 +160,17 @@ def connect_mqtt():
             password=config.MQTT_PASSWORD,
             keepalive=MQTT_KEEPALIVE
         )
+        # Callback registrieren
+        client.set_callback(mqtt_callback)
+        
         # Last Will einrichten (Broker sendet "offline" bei Verbindungsverlust)
         client.set_last_will(TOPIC_STATUS, b"offline", retain=True)
         
         client.connect()
         print("MQTT verbunden:", config.MQTT_BROKER)
+        
+        # Auf Befehls-Topic subscriben
+        client.subscribe(TOPIC_CMD)
         
         # Status und Version als Retained Messages veröffentlichen
         client.publish(TOPIC_STATUS, b"online", retain=True)
@@ -173,12 +197,21 @@ def disconnect_mqtt():
 
 
 def sleep_with_wdt(seconds):
-    """Schläft `seconds` Sekunden und füttert dabei den WDT jede Sekunde.
-    Sendet außerdem alle MQTT_KEEPALIVE Sekunden einen Ping."""
+    """Schläft `seconds` Sekunden, füttert den WDT und lauscht auf MQTT-Befehle."""
     global mqtt_client
     for i in range(seconds):
         utime.sleep(1)
         wdt.feed()
+        
+        # Auf eingehende MQTT-Befehle prüfen
+        if mqtt_client:
+            try:
+                mqtt_client.check_msg()
+            except Exception as e:
+                print("Fehler bei check_msg:", e)
+                disconnect_mqtt()
+                break
+        
         # MQTT Keep-Alive Ping
         if mqtt_client and (i + 1) % MQTT_KEEPALIVE == 0:
             try:
@@ -186,6 +219,7 @@ def sleep_with_wdt(seconds):
             except Exception as e:
                 print("MQTT-Ping fehlgeschlagen:", e)
                 disconnect_mqtt()
+                break
 
 
 # =============================================================================
