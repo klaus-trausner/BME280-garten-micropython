@@ -24,6 +24,8 @@ MQTT_TOPIC_PUB = b"test"
 TOPIC_TEMP     = b"esp32/temperature"
 TOPIC_PRES     = b"esp32/pressure"
 TOPIC_HUM      = b"esp32/humidity"
+TOPIC_STATUS   = b"esp32/status"
+TOPIC_VERSION  = b"esp32/version"
 
 # OTA Setup (GitHub)
 OTA_REPO = {
@@ -140,9 +142,19 @@ def connect_mqtt():
             password=config.MQTT_PASSWORD,
             keepalive=MQTT_KEEPALIVE
         )
+        # Last Will einrichten (Broker sendet "offline" bei Verbindungsverlust)
+        client.set_last_will(TOPIC_STATUS, b"offline", retain=True)
+        
         client.connect()
         print("MQTT verbunden:", config.MQTT_BROKER)
+        
+        # Status und Version als Retained Messages veröffentlichen
+        client.publish(TOPIC_STATUS, b"online", retain=True)
+        client.publish(TOPIC_VERSION, VERSION.encode(), retain=True)
+        
+        # Optionaler abwärtskompatibler Test-Publish
         client.publish(MQTT_TOPIC_PUB, b"ESP32-C3 online v" + VERSION.encode())
+        
         return client
     except Exception as e:
         print("MQTT-Verbindungsfehler:", e)
