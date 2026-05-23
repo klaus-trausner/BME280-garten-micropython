@@ -16,7 +16,7 @@ except ImportError:
 
 # Version
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 # MQTT Topics
 MQTT_CLIENT_ID = "BME280_Garten_Sensor"
